@@ -3,7 +3,7 @@
 
 using namespace std;
 
-// estructura que uso para guardar los datos 
+// estructura que uso para guardar los datos
 struct Comanda {
     int idMozo;
     int codigoProducto;
@@ -11,17 +11,16 @@ struct Comanda {
     float comision;
 };
 
-// --- Funciones auxiliares para cadenas (char[]) ---
-void copiar_texto(char destino[], const char origen[]) {// origen es constante porque solo lo leo
+void copiar_texto(char destino[], const char origen[]) {
     int i = 0;
     while (origen[i] != '\0') {
-        destino[i] = origen[i]; //copio la primera parte del nombre 
-                                //de mi archivo a destino 
+        destino[i] = origen[i];  
+                                 
         i++;
     }
     destino[i] = '\0';
 }
-//a partir del final de comandas_ empiezo a escribir la fecha 
+ 
 void pegar_al_final(char destino[], const char origen[]) {
     int i = 0;
     while (destino[i] != '\0') {
@@ -33,10 +32,10 @@ void pegar_al_final(char destino[], const char origen[]) {
         i++;
         j++;
     } // el nuevo destino arranca en el ultimo caracter de i y sigue con el primer origen de j
-    destino[i] = '\0'; //termino la cadena de caracteres 
+    destino[i] = '\0'; 
 }
 
-void armarNombreDia(char resultado[], const char fecha[]) {// armar el nombre de los archivos a leer
+void armarNombreDia(char resultado[], const char fecha[]) {
     copiar_texto(resultado, "comandas_");
     pegar_al_final(resultado, fecha);
     pegar_al_final(resultado, ".dat");
@@ -48,7 +47,7 @@ void armarNombreSemana(char resultado[], const char semanaMes[]) {
     pegar_al_final(resultado, ".dat");
 }
 
-// --- PROGRAMA PRINCIPAL ---
+
 int main() {
     // Un maximo logico de dias que puede tener una semana
     const int MAX_DIAS = 7; 
@@ -73,13 +72,13 @@ int main() {
         cin >> cantidadDias;
     }
 
-    // --- ESTRUCTURAS PARA EL APAREO MULTIPLE ---
-    FILE* archivosDias[MAX_DIAS]; //punteros para agarrar los archivos de cada dia
-    Comanda registroActual[MAX_DIAS];// Guardo la comanda que estoy leyendo actualmente de cada archivo
-    bool archivoActivo[MAX_DIAS];// Me avisa si el archivo todavia tiene datos (true) o ya se vacio (false)
+    
+    FILE* archivosDias[MAX_DIAS]; 
+    Comanda registroActual[MAX_DIAS];
+    bool archivoActivo[MAX_DIAS];
     int diasValidos = 0;
 
-    // 1. Fase de apertura y lectura anticipada 
+    
     for (int d = 0; d < cantidadDias; d++) {
         char fechaDia[15];
         char nombreArchivoDia[60];
@@ -88,16 +87,16 @@ int main() {
         cin >> fechaDia;
         armarNombreDia(nombreArchivoDia, fechaDia);
 
-        FILE* f = fopen(nombreArchivoDia, "rb");// busco el archivo y guardo la direccion de memoria (puntero)
+        FILE* f = fopen(nombreArchivoDia, "rb");// busco el archivo y guardo la direccion de memoria 
         if (f != NULL) {
-            // LECTURA ANTICIPADA: Solo si lee correctamente 1 bloque, queda activo
+            
             if (fread(&registroActual[diasValidos], sizeof(Comanda), 1, f) == 1) {
                 archivosDias[diasValidos] = f;
                 archivoActivo[diasValidos] = true;
                 diasValidos++;
                 cout << "-> Archivo '" << nombreArchivoDia << "' listo para apareo." << endl;
             } else {
-                fclose(f); // El archivo existia pero estaba vacio
+                fclose(f); 
                 cout << "-> Archivo '" << nombreArchivoDia << "' esta vacio. Se omite." << endl;
             }
         } else {
@@ -110,15 +109,14 @@ int main() {
         return 0;
     }
 
-    // 2. Creacion del archivo semanal unificado
+    
     FILE* fSemana = fopen(nombreArchivoSemana, "wb");
     if (fSemana == NULL) {//condicion por si ocurre un error al crear un archivo
         cout << "Error critico al crear " << nombreArchivoSemana << endl;
         return 1;
     }
 
-    // 3. Bucle principal de Apareo (Intercalacion en disco)
-    bool quedanDatos = true;//asumo que hay datos para que recorra el while aunque sea una vez
+    bool quedanDatos = true;
     int totalComandas = 0;
 
     while (quedanDatos) {
@@ -144,14 +142,14 @@ int main() {
 
             // Avanzamos leyendo el siguiente registro del mismo archivo
             if (fread(&registroActual[indiceMinimo], sizeof(Comanda), 1, archivosDias[indiceMinimo]) != 1) { //si no hay mas datos para leer 
-                //  cerramos y desactivamos ese dia
+                
                 archivoActivo[indiceMinimo] = false;
                 fclose(archivosDias[indiceMinimo]); //cierro el archivo y libero memoria
             }
         }
     }
 
-    fclose(fSemana); //cierro la carpeta definitiva sde la semana y la guardo 
+    fclose(fSemana);  
 
     cout << "\n========================================" << endl;
     cout << "Cierre completado mediante Apareo." << endl;
