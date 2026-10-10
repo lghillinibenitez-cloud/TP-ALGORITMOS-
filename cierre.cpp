@@ -5,6 +5,7 @@ using namespace std;
 
 // estructura que uso para guardar los datos
 struct Comanda {
+    char fecha[11];
     int idMozo;
     int codigoProducto;
     int cantidad;
@@ -122,29 +123,30 @@ int main() {
     while (quedanDatos) {
         quedanDatos = false;
         int indiceMinimo = -1;// guardo la ubicacion donde esta el minMozo
-        int minMozo = 9999999;// guardo el valor del mozo mas chico
-
-        // Buscamos cual de los archivos activos tiene el idMozo mas chico
-        for (int i = 0; i < diasValidos; i++) {
+       for (int i = 0; i < diasValidos; i++) {
             if (archivoActivo[i]) {
-                quedanDatos = true;
-                if (registroActual[i].idMozo < minMozo) {
-                    minMozo = registroActual[i].idMozo;
+                // Si es el primer archivo activo que leemos en esta vuelta, lo tomamos como el menor por defecto
+                if (!quedanDatos) {
+                    indiceMinimo = i;
+                    quedanDatos = true;
+                } 
+                // Si ya teniamos uno, comparamos a ver si el actual es aun menor
+                else if (registroActual[i].idMozo < registroActual[indiceMinimo].idMozo) {
                     indiceMinimo = i;
                 }
             }
         }
 
-        // Si encontramos un dato menor, lo grabamos y avanzamos SOLO ese archivo
+        // Si encontramos un dato, lo grabamos en el archivo semanal y avanzamos SOLO ese archivo
         if (quedanDatos && indiceMinimo != -1) {
             fwrite(&registroActual[indiceMinimo], sizeof(Comanda), 1, fSemana);
             totalComandas++;
 
             // Avanzamos leyendo el siguiente registro del mismo archivo
-            if (fread(&registroActual[indiceMinimo], sizeof(Comanda), 1, archivosDias[indiceMinimo]) != 1) { //si no hay mas datos para leer 
-                
+            if (fread(&registroActual[indiceMinimo], sizeof(Comanda), 1, archivosDias[indiceMinimo]) != 1) { 
+                // Si no hay mas datos para leer en este archivo especifico
                 archivoActivo[indiceMinimo] = false;
-                fclose(archivosDias[indiceMinimo]); //cierro el archivo y libero memoria
+                fclose(archivosDias[indiceMinimo]); // Cierro el archivo y libero memoria
             }
         }
     }
