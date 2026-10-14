@@ -1,0 +1,12 @@
+# Ignorar archivos ejecutables de Windows
+*.exe
+
+# Ignorar archivos ejecutables de Linux/Mac
+*.out
+normalizacion
+ventas
+cierre
+resumen
+
+# Ignorar archivos binarios de datos (Requisito de la catedra)
+*.dat
