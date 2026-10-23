@@ -48,6 +48,32 @@ for (int i = 0; clave[i] != '\0'; i++){
    }
 }
 
+// actualiza el stock directo en inventario.dat sin cargar toda la lista:
+// busca el producto, retrocede un registro con fseek y pisa solo ese registro
+bool descontarStock(int codProd, int cantidad) {
+    FILE* arch = fopen("inventario.dat", "rb+");
+
+    if (arch == NULL) {
+        return false;
+    }
+
+    Producto p;
+    bool encontrado = false;
+
+    while (!encontrado && fread(&p, sizeof(Producto), 1, arch) == 1) {
+        if (p.codigo == codProd) {
+            p.stockActual -= cantidad;
+
+            fseek(arch, -static_cast<long>(sizeof(Producto)), SEEK_CUR);
+            fwrite(&p, sizeof(Producto), 1, arch);
+            encontrado = true;
+        }
+    }
+
+    fclose(arch);
+    return encontrado;
+}
+
 int main() {
     FILE* archivo = fopen( "comandas_historicas.dat", "rb");
 
@@ -114,19 +140,7 @@ int main() {
     // ACA EMPIEZA LA PARTE B 
     // ---------------------------------------------------------
 
-    // 1 cargar el inventario a un vector
-    FILE* archInv = fopen("inventario.dat", "rb");
-    Producto inventario[100];
-    int cantInv = 0;
-    
-    if (archInv != NULL) {
-        while (fread(&inventario[cantInv], sizeof(Producto), 1, archInv) == 1) {
-            cantInv++;
-        }
-        fclose(archInv);
-    }
-
-    // 2 volvemos a abrir comandas para procesar las ventas
+    // 1 volvemos a abrir comandas para procesar las ventas
     FILE* archComandas = fopen("comandas_historicas.dat", "rb");
     VentaAux ventas[1000];
     int cantVentas = 0;
@@ -148,12 +162,10 @@ int main() {
                 }
             }
 
-            // descontamos el stock en el vector del inventario
-            for (int i = 0; i < cantInv; i++) {
-                if (inventario[i].codigo == comVieja.codigoProducto) {
-                    inventario[i].stockActual -= comVieja.cantidad;
-                    break;
-                }
+            // descontamos el stock directamente en inventario.dat
+            if (!descontarStock(comVieja.codigoProducto, comVieja.cantidad)) {
+                cout << "[AVISO] Producto " << comVieja.codigoProducto
+                     << " no encontrado en inventario.dat" << endl;
             }
             
             cantVentas++;
@@ -161,16 +173,7 @@ int main() {
         fclose(archComandas);
     }
 
-    // 3 guardamos el inventario actualizado pisando el viejo
-    FILE* archInvNuevo = fopen("inventario.dat", "wb");
-    if (archInvNuevo != NULL) {
-        for (int i = 0; i < cantInv; i++) {
-            fwrite(&inventario[i], sizeof(Producto), 1, archInvNuevo);
-        }
-        fclose(archInvNuevo);
-    }
-
-    // 4 ordenamos las ventas (burbujeo por fecha y despues por id de mozo)
+    // 2 ordenamos las ventas (burbujeo por fecha y despues por id de mozo)
     for (int i = 0; i < cantVentas - 1; i++) {
         for (int j = 0; j < cantVentas - i - 1; j++) {
             int comp = strcmp(ventas[j].fecha, ventas[j+1].fecha);
@@ -184,7 +187,7 @@ int main() {
         }
     }
 
-    // 5 separamos por dia creando los archivos (corte de control)
+    // 3 separamos por dia creando los archivos (corte de control)
     char fechaActual[11];
     strcpy(fechaActual, "");
     FILE* archDia = NULL;

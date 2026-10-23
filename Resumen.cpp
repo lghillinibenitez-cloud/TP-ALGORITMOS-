@@ -5,7 +5,6 @@ using namespace std;
 
 // Estructura de la comanda
 struct Comanda {
-    char fecha[11];
     int idMozo;
     int codigoProducto;
     int cantidad;
