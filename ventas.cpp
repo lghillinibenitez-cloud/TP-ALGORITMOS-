@@ -1,6 +1,9 @@
 #include <iostream>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
+#include <climits>
+#include <string>
 
 using namespace std;
 
@@ -11,7 +14,7 @@ struct Mozo {
     char nombre[50];
     char password[20];
     float totalComision;
-};[cite: 1]
+};
 
 struct Producto {
     int codigo;
@@ -21,7 +24,6 @@ struct Producto {
 };
 
 struct Comanda {
-    char fecha[11];
     int idMozo;
     int codigoProducto;
     int cantidad;
@@ -32,7 +34,7 @@ void encriptar(char clave[]) {
     for (int i = 0; clave[i] != '\0'; i++) {
         clave[i] += K; 
     }
-}[cite: 1]
+}
 
 bool autenticarMozo(int id, const char* clavePlana, Mozo &mozoOut) {
     FILE* arch = fopen("mozos.dat", "rb"); 
@@ -124,8 +126,13 @@ void ordenarArchivoPorMozo(const char* nombreArchivo) {
 
     Comanda* comandas = new Comanda[totalRegistros];
     fseek(arch, 0, SEEK_SET);
-    fread(comandas, sizeof(Comanda), totalRegistros, arch);
+    size_t leidos = fread(comandas, sizeof(Comanda), totalRegistros, arch);
     fclose(arch);
+    if ((int)leidos != totalRegistros) {
+        cout << "[ERROR] No se pudo leer completo " << nombreArchivo << "\n";
+        delete[] comandas;
+        return;
+    }
 
     for (int i = 0; i < totalRegistros - 1; i++) {
         for (int j = 0; j < totalRegistros - i - 1; j++) {
@@ -146,11 +153,49 @@ void ordenarArchivoPorMozo(const char* nombreArchivo) {
     delete[] comandas;
 }
 
+// Lee un entero validando TODO lo ingresado (rechaza "abc", "12abc", "1.5").
+// Devuelve false solo si se cierra la entrada (EOF).
+bool leerEntero(int &valor) {
+    string texto;
+    while (cin >> texto) {
+        char* fin;
+        long v = strtol(texto.c_str(), &fin, 10);
+        if (*fin == '\0' && v >= INT_MIN && v <= INT_MAX) {
+            valor = static_cast<int>(v);
+            return true;
+        }
+        cout << "[ERROR] Ingrese un numero valido: ";
+    }
+    return false;
+}
+
+// Lee una fecha con formato DD-MM-AAAA y la copia en fecha[11].
+// Devuelve false solo si se cierra la entrada (EOF).
+bool leerFecha(char fecha[]) {
+    string texto;
+    while (cin >> texto) {
+        bool valida = (texto.size() == 10 && texto[2] == '-' && texto[5] == '-');
+        for (int i = 0; valida && i < 10; i++) {
+            if (i != 2 && i != 5 && (texto[i] < '0' || texto[i] > '9')) {
+                valida = false;
+            }
+        }
+        if (valida) {
+            strcpy(fecha, texto.c_str());
+            return true;
+        }
+        cout << "[ERROR] Formato invalido. Use DD-MM-AAAA: ";
+    }
+    return false;
+}
+
 int main() {
     char fecha[11];
     cout << "=== SISTEMA DE CARGA DE COMANDAS ===\n";
     cout << "Ingrese la fecha del dia (DD-MM-AAAA): ";
-    cin >> fecha;
+    if (!leerFecha(fecha)) {
+        return 1;
+    }
 
     char nombreArchivo[50];
     snprintf(nombreArchivo, sizeof(nombreArchivo), "comandas_%s.dat", fecha);
@@ -158,20 +203,22 @@ int main() {
     while (true) {
         cout << "\n--- Nueva Comanda ---\n";
         int idIngresado;
-        char passIngresada[20];
+        string passIngresada;
 
         cout << "Ingrese ID del Mozo (o 0 para finalizar jornada): ";
-        cin >> idIngresado;
-
-        if (idIngresado == 0) {
+        if (!leerEntero(idIngresado) || idIngresado == 0) {
             break;
         }
 
         cout << "Ingrese Clave: ";
-        cin >> passIngresada;
+        if (!(cin >> passIngresada)) {
+            break;
+        }
 
         Mozo mozoActual;
-        if (!autenticarMozo(idIngresado, passIngresada, mozoActual)) {
+        // una clave de 20 o mas caracteres no puede coincidir con ninguna guardada
+        if (passIngresada.size() >= sizeof(mozoActual.password) ||
+            !autenticarMozo(idIngresado, passIngresada.c_str(), mozoActual)) {
             cout << "[ACCESO DENEGADO] ID o contrasenia incorrectos.\n";
             continue; // Salta al siguiente ciclo de ingreso
         }
@@ -180,9 +227,13 @@ int main() {
 
         int codProd, cant;
         cout << "Codigo de producto: ";
-        cin >> codProd;
+        if (!leerEntero(codProd)) {
+            break;
+        }
         cout << "Cantidad: ";
-        cin >> cant;
+        if (!leerEntero(cant)) {
+            break;
+        }
 
         if (cant <= 0) {
             cout << "[ERROR] La cantidad ingresada debe ser mayor a 0.\n";
@@ -195,7 +246,6 @@ int main() {
             float comision = totalVenta * 0.10f;
 
             Comanda nuevaCmd;
-            strncpy(nuevaCmd.fecha, fecha, sizeof(nuevaCmd.fecha));
             nuevaCmd.idMozo = mozoActual.idMozo; 
             nuevaCmd.codigoProducto = codProd;
             nuevaCmd.cantidad = cant;
