@@ -66,6 +66,39 @@ bool autenticarMozo(int id, const char* clavePlana, Mozo &mozoOut) {
     return autenticado;
 }
 
+// Busqueda binaria directamente sobre inventario.dat (ordenado por codigo).
+// En cada paso lee solo el registro del medio con fseek, sin cargar el archivo.
+// Devuelve la posicion (numero de registro) del producto, o -1 si no existe.
+// Si lo encuentra, deja los datos del producto en p.
+long buscarProductoBinaria(FILE* arch, int codProd, Producto &p) {
+    fseek(arch, 0, SEEK_END);
+    long cantRegistros = ftell(arch) / static_cast<long>(sizeof(Producto));
+
+    long inf = 0;
+    long sup = cantRegistros - 1;
+
+    while (inf <= sup) {
+        long medio = inf + (sup - inf) / 2;
+
+        fseek(arch, medio * static_cast<long>(sizeof(Producto)), SEEK_SET);
+        if (fread(&p, sizeof(Producto), 1, arch) != 1) {
+            return -1;
+        }
+
+        if (p.codigo == codProd) {
+            return medio;
+        }
+        else if (p.codigo < codProd) {
+            inf = medio + 1;
+        }
+        else {
+            sup = medio - 1;
+        }
+    }
+
+    return -1;
+}
+
 bool descontarStock(int codProd, int cantidad, float &precioUnitario) {
     FILE* arch = fopen("inventario.dat", "rb+");
     
@@ -77,20 +110,19 @@ bool descontarStock(int codProd, int cantidad, float &precioUnitario) {
     Producto p;
     bool exito = false;
 
-    while (fread(&p, sizeof(Producto), 1, arch) == 1) {
-        if (p.codigo == codProd) {
-            if (p.stock >= cantidad) {
-                p.stock -= cantidad;
-                precioUnitario = p.precio;
+    long pos = buscarProductoBinaria(arch, codProd, p);
 
-                fseek(arch, -static_cast<long>(sizeof(Producto)), SEEK_CUR);
-                fwrite(&p, sizeof(Producto), 1, arch);
-                exito = true;
-            } 
-            else {
-                cout << "[AVISO] Stock insuficiente. Disponible: " << p.stock << "\n";
-            }
-            break; 
+    if (pos >= 0) {
+        if (p.stock >= cantidad) {
+            p.stock -= cantidad;
+            precioUnitario = p.precio;
+
+            fseek(arch, pos * static_cast<long>(sizeof(Producto)), SEEK_SET);
+            fwrite(&p, sizeof(Producto), 1, arch);
+            exito = true;
+        } 
+        else {
+            cout << "[AVISO] Stock insuficiente. Disponible: " << p.stock << "\n";
         }
     }
 
